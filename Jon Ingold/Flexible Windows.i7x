@@ -1,4 +1,4 @@
-Version 15/150620 of Flexible Windows (for Glulx only) by Jon Ingold begins here.
+Version 15/160129 of Flexible Windows (for Glulx only) by Jon Ingold begins here.
 
 "Exposes the Glk windows system so authors can completely control the creation and use of windows"
 
@@ -13,9 +13,6 @@ Version 15/150620 of Flexible Windows (for Glulx only) by Jon Ingold begins here
 
 [ TODO:
 model the quote window too?
-bordered windows
-echo streams?
-input phrases
 ]
 
 
@@ -23,6 +20,7 @@ input phrases
 Use authorial modesty.
 
 Include version 1/140512 of Alternative Startup Rules by Dannii Willis.
+Include version 1/160129 of Glk object recovery by Dannii Willis.
 Include version 10/150620 of Glulx Entry Points by Emily Short.
 Include version 5/140516 of Glulx Text Effects by Emily Short.
 
@@ -170,9 +168,6 @@ The gg_quotewin variable translates into I6 as "gg_quotewin".
 
 [ We often wrap a phrase or rule around a core glk function, so that there is no good name to give to the actual function's phrase. So instead let's just define them using the I6 function's name here. This also means we can reduce the number of unindexed sections. ]
 
-To call glk_request_hyperlink_event for (win - a g-window):
-	(- glk_request_hyperlink_event( {win}.(+ ref number +) ); -).
-
 To call glk_set_window for (win - a g-window):
 	(- glk_set_window( {win}.(+ ref number +) ); -).
 
@@ -189,12 +184,10 @@ Include (-
 
 To set the background color of (win - a g-window) to (T - a text):
 	(- glk_window_set_background_color( {win}.(+ ref number +), GTE_ConvertColour( {-by-reference:T} ) ); -).
-
-To decide which number is the glk event window reference:
-	(- ( gg_event-->1 ) -).
-
-To decide which number is the glk event val1:
-	(- ( gg_event-->2 ) -).
+	
+[ Fix spurious line breaks from being printed in the main window after running the refreshing activity ]
+To safely carry out the (A - activity on value of kind K) activity with (val - K):
+	(- @push say__p; @push say__pc; CarryOutActivity( {A}, {val} ); @pull say__pc; @pull say__p; -).
 
 
 
@@ -207,13 +200,6 @@ To decide which g-window is the parent of (win - a g-window):
 	if the holder of win is a g-window:
 		decide on the holder of win;
 	decide on the invalid window;
-
-To decide which g-window is the glk event window:
-	let N be the glk event window reference;
-	repeat with win running through g-present g-windows:
-		if N is the ref number of win:
-			decide on win;
-	decide on the acting main window;
 
 To decide which g-window is the window with ref (ref - a number):
 	if ref is not 0:
@@ -249,9 +235,6 @@ To close (win - a g-window):
 		now every g-window descended from win is g-unrequired;
 		calibrate windows;
 
-To shut down (win - a g-window) (deprecated):
-	close win;
-
 
 
 Section - Calibrating windows - unindexed
@@ -267,11 +250,11 @@ To calibrate windows:
 	while there is a not currently being processed g-unrequired g-present childless g-window (called win):
 		[ Only run each window once, even if we end up back in this loop (by open/close being called in a before rule), to prevent infinite loops ]
 		now win is currently being processed;
-		carry out the deconstructing activity with win;
+		safely carry out the deconstructing activity with win;
 		now win is not currently being processed;
 	while there is a not currently being processed g-required g-unpresent next-step g-window (called win):
 		now win is currently being processed;
-		carry out the constructing activity with win;
+		safely carry out the constructing activity with win;
 		now win is not currently being processed;
 
 
@@ -371,7 +354,7 @@ To clear (win - a g-window):
 	(- glk_window_clear( {win}.(+ ref number +) ); -).
 
 To refresh (win - a g-window):
-	carry out the refreshing activity with win;
+	safely carry out the refreshing activity with win;
 
 To refresh all/-- windows:
 	repeat with win running through g-present g-windows:
@@ -415,9 +398,6 @@ The current focus window is a g-window variable.
 The acting main window is a g-window variable.
 The acting main window is the main window.
 
-The current input window is a g-window variable.
-The current input window is the main window.
-
 To focus (win - a g-window):
 	if win is g-present:
 		now the current focus window is win;
@@ -425,7 +405,6 @@ To focus (win - a g-window):
 
 To set (win - a g-present textual g-window) as the acting main window:
 	now the acting main window is win;
-	now the current input window is win;
 	now gg_mainwin is the ref number of win;
 	focus win;
 	let the status window state be whether or not the status window is g-present;
@@ -433,24 +412,6 @@ To set (win - a g-present textual g-window) as the acting main window:
 	now the status window is spawned by win;
 	if the status window state is true:
 		open the status window;
-
-[ Not strictly needed, but to allow FW to be controlled solely through phrases rather than variables ]
-To set (win - a g-window) as the current input window:
-	if win is g-present:
-		now the current input window is win;
-
-To set/move/shift the/-- focus to (win - a g-window), clearing the window (deprecated):
-	if win is g-present:
-		focus win;
-		if clearing the window:
-			clear win;
-
-To open up/-- (win - a g-window) as the/-- main/current/-- text/-- output window (deprecated):
-	open win, as the acting main window;
-
-To open up/-- (win - a g-window) as the/-- main/current/-- text/-- input window (deprecated):
-	open win;
-	set win as the current input window;
 
 
 
@@ -461,12 +422,6 @@ To decide what number is the height of (win - a g-window):
 
 To decide what number is the width of (win - a g-window):
 	(- FW_WindowSize( {win}, 0 ) -).
-
-[ Is this useful? ]
-To decide which number is the measure of (win - a g-window) (deprecated):
-	if win is vertically positioned:
-		decide on the height of win;
-	decide on the width of win;
 
 Include (-  
 [ FW_WindowSize win index;
@@ -503,26 +458,21 @@ A glulx zeroing-reference rule (this is the reset window properties rule):
 		now win is g-unpresent;
 		now win is not currently being processed;
 
-[ Find all present windows, mark them as present and store their ref numbers. Note this will not run for the built in windows. ]
+[ Find all present windows, mark them as present and store their ref numbers. ]
+The identify built in windows rule is not listed in the glulx resetting-windows rules.
 A glulx resetting-windows rule (this is the find existing windows rule):
 	let win be the window with rock current glulx rock;
 	if win is not the invalid window:
 		now the ref number of win is the current glulx rock-ref;
 		now win is g-present;
+		if win is the acting main window:
+			now gg_mainwin is the current glulx rock-ref;
+		if win is the status window:
+			now gg_statuswin is the current glulx rock-ref;
 
 A first glulx object-updating rule (this is the recalibrate windows rule):
-	[ I used to think it wasn't safe to call the calibrate windows phrase here, but I can't really think why now ]
 	calibrate windows;
 	focus the current focus window;
-
-A first glulx object-updating rule (this is the find the built in windows rule):
-	if gg_mainwin is not 0:
-		now the ref number of the main window is gg_mainwin;
-		now the main window is g-present;
-		now gg_mainwin is the ref number of the acting main window;
-	if gg_statuswin is not 0:
-		now the ref number of the status window is gg_statuswin;
-		now the status window is g-present;
 
 
 
@@ -547,8 +497,6 @@ Before deconstructing a textual g-window (called win) (this is the fix the curre
 		set parent as the acting main window;
 	if win is the current focus window:
 		focus parent;
-	if win is the current input window:
-		set the acting main window as the current input window;
 
 After deconstructing a textual g-window (called win) (this is the clear the I6 window variables rule):
 	[ The fix the current windows rule could have changed the acting main window to something other than win, so we don't check for win. ]
@@ -829,6 +777,13 @@ A glulx zeroing-reference rule (this is the set generic text styles rule):
 		if there is a reversed entry:
 			set reversed of wintype W for the style name entry to the reversed entry;
 
+[ Gargoyle sets the cursor color to whatever the last text-buffer color hint was. We will reset it using a variable the story author can change.
+This is apparently by design, but seems unuseful and buggy to me. I raised the issue at https://groups.google.com/forum/#!topic/garglk-dev/DdqG0Ppt2lY ]
+
+The Gargoyle cursor color is initially "#000000".
+After constructing a textual g-window (this is the Gargoyle cursor color rule):
+	set the color of wintype 3 for normal-style to the Gargoyle cursor color;
+
 
 
 Section - Applying window specific styles
@@ -941,45 +896,6 @@ After constructing a textual g-window (this is the Gargoyle window padding rule)
 	if T is empty:
 		let T be "#FFFFFF";
 	set the background color of wintype 3 for normal-style to T;
-
-
-
-Part - Input events
-
-Chapter - Hyperlinks
-
-To say link (N - a number):
-	(- if ( glk_gestalt( gestalt_Hyperlinks, 0 ) ) { glk_set_hyperlink( {N} ); } -).
-
-To say end link:
-	(- if ( glk_gestalt( gestalt_Hyperlinks, 0 ) ) { glk_set_hyperlink( 0 ); } -).
-
-Processing hyperlinks for something is an activity on g-windows.
-The processing hyperlinks activity has a number called the hyperlink ID.
-
-After constructing a textual g-window (called win) (this is the request hyperlink events rule):
-	if glk hyperlinks are supported:
-		call glk_request_hyperlink_event for win;
-
-A glulx input handling rule for a hyperlink-event (this is the default hyperlink handling rule):
-	carry out the processing hyperlinks activity with the glk event window;
-
-Before processing hyperlinks (this is the prepare for processing hyperlinks rule):
-	now the hyperlink ID is the glk event val1;
-
-Last for processing hyperlinks (this is the default hyperlink command replacement rule):
-	repeat through the Table of Glulx Hyperlink Replacement Commands:
-		if the hyperlink ID is link ID entry:
-			now the glulx replacement command is replacement entry;
-			rule succeeds;
-	now the glulx replacement command is "";
-
-Table of Glulx Hyperlink Replacement Commands
-link ID (number)	replacement (text)
---
-
-After processing hyperlinks for a g-window (called win) (this is the request hyperlink events again rule):
-	call glk_request_hyperlink_event for win;
 
 
 
