@@ -1,4 +1,4 @@
-Version 15/160129 of Flexible Windows (for Glulx only) by Jon Ingold begins here.
+Version 15/170131 of Flexible Windows (for Glulx only) by Jon Ingold begins here.
 
 "Exposes the Glk windows system so authors can completely control the creation and use of windows"
 
@@ -8,20 +8,16 @@ Version 15/160129 of Flexible Windows (for Glulx only) by Jon Ingold begins here
 - Many kinds, properties and the main/status windows have lost their hyphens
 - Colours/styles updated to match GTE
 - The window-drawing rules have been turned into the refreshing activity. It is no longer necessary to focus or clear the window
-- The hyperlink processing rules have been turned into the processing hyperlinks activity.
-]
-
-[ TODO:
-model the quote window too?
+- Hyperlink-related code has been removed entirely
+- "Rock" has become "rock number"
 ]
 
 
 
 Use authorial modesty.
 
-Include version 1/140512 of Alternative Startup Rules by Dannii Willis.
-Include version 1/160129 of Glk object recovery by Dannii Willis.
-Include version 10/150620 of Glulx Entry Points by Emily Short.
+Include version 1/140516 of Alternative Startup Rules by Dannii Willis.
+Include version 10/160919 of Glulx Entry Points by Emily Short.
 Include version 5/140516 of Glulx Text Effects by Emily Short.
 
 
@@ -48,6 +44,7 @@ The g-window types are g-text-buffer, g-text-grid and g-graphics.
 The specification of a g-window type is "Glk windows are one of these three types."
 A g-window has a g-window type called type.
 Definition: a g-window is graphical rather than textual if the type of it is g-graphics.
+Definition: a g-window is buffering rather than non-buffering if the type of it is g-text-buffer.
 
 A graphics g-window is a kind of g-window.
 The type of a graphics g-window is g-graphics.
@@ -72,7 +69,7 @@ The measurement of a g-window is usually 40.
 
 A g-window has a number called minimum size.
 
-A g-window has a number called the rock.
+A g-window has a number called the rock number.
 
 A g-window has a number called ref number.
 
@@ -114,11 +111,8 @@ The scale method of the status window is g-fixed-size.
 The measurement of the status window is 1.
 
 Use no status line translates as (- Constant USE_NO_STATUS_LINE 1; -).
-[Include (-
-#ifndef USE_NO_STATUS_LINE;
-Constant USE_NO_STATUS_LINE 0;
-#endif;
--).]
+
+The quote window is a g-window spawned by the main window.
 
 
 
@@ -146,6 +140,7 @@ This is the open the built-in windows using Flexible Windows rule:
 		close the status window;
 	otherwise:
 		open the status window;
+	close the quote window;
 	continue the activity;
 
 
@@ -182,9 +177,12 @@ Include (-
 ];
 -).
 
+To call glk_window_clear for (win - a g-window):
+	(- glk_window_clear( {win}.(+ ref number +) ); -).
+
 To set the background color of (win - a g-window) to (T - a text):
 	(- glk_window_set_background_color( {win}.(+ ref number +), GTE_ConvertColour( {-by-reference:T} ) ); -).
-	
+
 [ Fix spurious line breaks from being printed in the main window after running the refreshing activity ]
 To safely carry out the (A - activity on value of kind K) activity with (val - K):
 	(- @push say__p; @push say__pc; CarryOutActivity( {A}, {val} ); @pull say__pc; @pull say__p; -).
@@ -193,6 +191,7 @@ To safely carry out the (A - activity on value of kind K) activity with (val - K
 
 Section - And some phrases to find windows - unindexed
 
+[ This may be a non-existent window, or one which was created in I6 but has no corresponding g-window ]
 To decide which g-window is the invalid window:
 	(- ( nothing ) -).
 
@@ -211,7 +210,7 @@ To decide which g-window is the window with ref (ref - a number):
 To decide which g-window is the window with rock (rock - a number):
 	if rock is not 0:
 		repeat with win running through g-windows:
-			if the rock of win is rock:
+			if the rock number of win is rock:
 				decide on win;
 	decide on the invalid window;
 
@@ -317,7 +316,7 @@ Include (-
 		}
 	}
 	type = win.(+ type +) + 2;
-	rock = win.(+ rock +);
+	rock = win.(+ rock number +);
 	win.(+ ref number +) = FW_glk_window_open( parentwin, method, size, type, rock );
 	rfalse;
 ];
@@ -351,13 +350,16 @@ For deconstructing a g-window (called win) (this is the basic deconstruction rul
 Chapter - Clearing and refreshing windows
 
 To clear (win - a g-window):
-	(- glk_window_clear( {win}.(+ ref number +) ); -).
+	if win is g-present:
+		if the type of win is g-graphics and the background color of win is not empty:
+			set the background color of win to the background color of win;
+		call glk_window_clear for win;
 
 To refresh (win - a g-window):
 	safely carry out the refreshing activity with win;
 
 To refresh all/-- windows:
-	repeat with win running through g-present g-windows:
+	repeat with win running through g-present non-buffering g-windows:
 		refresh win;
 
 Refreshing something is an activity on g-windows.
@@ -410,6 +412,8 @@ To set (win - a g-present textual g-window) as the acting main window:
 	let the status window state be whether or not the status window is g-present;
 	close the status window;
 	now the status window is spawned by win;
+	close the quote window;
+	now the quote window is spawned by win;
 	if the status window state is true:
 		open the status window;
 
@@ -443,13 +447,14 @@ Chapter - Handling GGRecoverObjects()
 
 [ First ensure that window rocks are assigned ]
 A glulx zeroing-reference rule (this is the set g-window rocks rule):
-	if the rock of the main window is 0:
-		now the rock of the main window is GG_MAINWIN_ROCK;
-		now the rock of the status window is GG_STATUSWIN_ROCK;
+	if the rock number of the main window is 0:
+		now the rock number of the main window is GG_MAINWIN_ROCK;
+		now the rock number of the status window is GG_STATUSWIN_ROCK;
+		now the rock number of the quote window is GG_QUOTEWIN_ROCK;
 		let i be 1000;
 		repeat with win running through g-windows:
-			if the rock of win is 0:
-				now the rock of win is i;
+			if the rock number of win is 0:
+				now the rock number of win is i;
 				increase i by 10;
 
 A glulx zeroing-reference rule (this is the reset window properties rule):
@@ -469,6 +474,8 @@ A glulx resetting-windows rule (this is the find existing windows rule):
 			now gg_mainwin is the current glulx rock-ref;
 		if win is the status window:
 			now gg_statuswin is the current glulx rock-ref;
+		if win is the quote window:
+			now gg_quotewin is the current glulx rock-ref;
 
 A first glulx object-updating rule (this is the recalibrate windows rule):
 	calibrate windows;
@@ -488,6 +495,8 @@ After constructing a textual g-window (called win) (this is the update the I6 wi
 	if win is the status window:
 		now gg_statuswin is the ref number of win;
 		[ statuswin_cursize/statuswin_size? - make a rule for deconstructing too? ]
+	if win is the quote window:
+		now gg_quotewin is the ref number of win;
 
 Before deconstructing a textual g-window (called win) (this is the fix the current windows rule):
 	let parent be the parent of win;
@@ -504,12 +513,14 @@ After deconstructing a textual g-window (called win) (this is the clear the I6 w
 		now gg_mainwin is 0;
 	if win is the status window:
 		now gg_statuswin is 0;
+	if win is the quote window:
+		now gg_quotewin is 0;
 
 
 
 Chapter - Interjecting for windows we don't control - unindexed
 
-[ To account for the template code which creates and destroys windows we will high-jack the I6 glk functions and take over if possible ]
+[ To account for the template code which creates and destroys windows we will hijack the I6 glk functions and take over if possible ]
 
 Include (-
 Replace glk_window_open;
@@ -517,6 +528,7 @@ Replace glk_window_close;
 -) before "Glulx.i6t".
 
 Include (-
+! Replacement functions from Flexible Windows by Jon Ingold
 [ glk_window_open parent method size type rock result;
 	result = ( (+ handling an unscheduled construction +)-->1 )( parent, method, size, type, rock );
 	if ( result == 0 )
@@ -530,7 +542,7 @@ Include (-
 	( (+ handling an unscheduled deconstruction +)-->1 )( ref );
 	return 0;
 ];
--) after "Glulx.i6t".
+-) after "Infglk" in "Glulx.i6t".
 
 To decide which number is the result from handling an unscheduled construction from (parent - a number) with method (method - a number) and size (size - a number) and type (type - a number) and rock (rock - a number) (this is handling an unscheduled construction):
 	let parent win be the window with ref parent;
@@ -883,20 +895,227 @@ First after constructing a textual g-window (called win) (this is the reset the 
 	if the background color of win is not empty:
 		clear the background color of wintype 0 for all-styles;
 
-After constructing a graphical g-window (called win) (this is the set the background color of graphics windows rule):
-	if the background color of win is not empty:
-		set the background color of win to the background color of win;
-		clear win;
+[ Setting the background color of graphics windows is handled by the automatic clearing which occurs after the window is constructed ]
 
 [ As explained by Ben Cressey (http://groups.google.com/group/rec.arts.int-fiction/msg/b88316e2dcf1bb6b)
 Gargoyle sets the colour of its window padding based on the last background colour style hint given to the normal style. So after clearing all the background colours and styles, we set it based on the background color of the main window, or just set white if it isn't set. ]
+
+[ This phrase is made available in case you want to set the colour at some other time (such as when opening a pop-over window) ]
+To set the Gargoyle window padding to (T - a text):
+	set the background color of wintype 3 for normal-style to T;
+
+To set the Gargoyle background color to the color (T - a text) (deprecated):
+	set the background color of wintype 3 for normal-style to T;
 
 After constructing a textual g-window (this is the Gargoyle window padding rule):
 	let T be the background color of the acting main window;
 	if T is empty:
 		let T be "#FFFFFF";
-	set the background color of wintype 3 for normal-style to T;
+	set the Gargoyle window padding to T;
 
 
 
 Flexible Windows ends here.
+
+
+---- DOCUMENTATION ----
+
+Chapter: Introduction
+	
+Flexible Windows allows the Glulx author to construct and fill a series of multiple windows, which can be created and destroyed safely during the course of play. Restarts and restores are all handled properly. Windows can be graphical, text-buffers (like the main window is) or text-grids (in which case, glk calls can be used to place characters anywhere within them).
+
+Although Flexible Windows does not supply any rules for using graphical windows beyond the most basic, several can be found in Emily Short's Simple Graphical Window extension. Version 15/160929 of Flexible Windows is compatible with version 10/160929 of Simple Graphical Window. Older versions of these two extensions are not compatible with each other.
+
+Flexible Windows requires Alternative Startup Rules by Dannii Willis, Glulx Entry Points by Emily Short, and Glulx Text Effects by Emily Short.
+
+Note that Flexible Windows uses the container relation for windows. We'll need to keep this in mind if we iterate through all containers.
+
+
+Chapter: Window Types, Properties, and Styles
+
+Section: Window Type
+
+Each window is a thing of the kind g-window. There are three types of Glulx window: text buffer, text grid and graphics. A text buffer is a teletype-style stream of text (akin to the main window), a graphics screen cannot accept text but can render images, and a text grid (akin to the status bar) allows for flexible positioning of text characters (for instance, centering text). 
+
+There are two potential ways to define a window's type. One is to declare it to be of the appropriate kind:
+
+	The side window is a text buffer g-window.
+	The side window is a text grid g-window.
+	The side window is a graphics g-window.
+
+The other way is to set the "type" property to one of g-text-buffer, g-text-grid, or g-graphics. This is useful when we can't use one of the kinds given above. The following statements are true (although they don't actually appear anywhere in the extension):
+
+	The type of the main window is g-text-buffer.
+	The type of the status window is g-text-grid.
+
+	
+Section: Window Position
+	
+All games start, by default, with a status bar along the top of the screen, and the main window below.
+
+Glulx windows are formed from the main window by carving off segments using either horizontal or vertical strokes, with each stroke creating one new window, from which further windows can be cut. This automatically creates a tree-structure for windows, with each new window being sliced from one that came before. The extension refers to this process as "spawning", and you set up your layout of windows by telling the game which window spawns which. 
+
+The position of each new window is specified using one of four positions: g-placeabove, g-placebelow, g-placeleft and g-placeright. Note that these indicate where the new window will be, rather than the direction of the slice taken.
+
+So for example, to create a banner between the main screen and the status, we would write
+
+	The banner window is a g-window. The main window spawns the banner window. The position of the banner window is g-placeabove.
+
+For a more complicated layout, akin to a standard email client, with folder list, contacts, preview and files windows, we would write
+
+	The contacts pane, folder list and preview window are g-windows. The main window spawns the preview window and the contacts pane. The contacts pane spawns the folder list.
+	The position of the preview window is g-placebelow. The position of the contacts pane is g-placeleft. The position of the folder list is g-placeabove.
+
+(Try sketching it out on a piece of paper.)
+
+
+Section: Window Size
+
+Once the rough positions of the windows have been decided, the next thing to allocate is their size. This can be done two ways: either by taking a proportional of the window being spawned from (so a 40% slice or a 15% slice), or taking a window of fixed size (in pixels for graphics windows, and in columns/rows for text windows). The proportion to take, or the width of a fixed size side window (equivalently, the height of a top or bottom window) is set using the "measurement" property of the g-window. So we could write
+
+	The scale method of the side window is g-proportional. The measurement of the side window is 25.
+	The scale method of the banner window is g-fixed-size. The measurement of the banner window is 30.
+
+Finally, if we are using proportional windows, we can optionally set a "minimum size", which if the window gets below, it will take, rather than using the proportional scale.
+
+
+Section: Text Style and Background Color
+
+Flexible Windows adds a "window" column to the Table of User Styles found in the Glulx Text Effects extension. We can specify styles for individual windows by continuing the table. The "window" column is for the name of the window; the rest of the columns are described in the Glulx Text Effects documentation.
+
+	Table of User Styles (continued)
+	window (a g-window)	style name (a glulx text style)	background color (a text)	color (a text)	first line indentation (a number)	fixed width (a truth state)	font weight (a font weight)	indentation (a number)	italic (a truth state)	justification (a text justification)	relative size (a number)	reversed (a truth state)
+
+Note that the "background color" column is for the background color of the text only, not the background color of the entire window.
+
+To color the background of the entire window, we instead set the g-window property "background color" to a six-digit web color code (with or without the # symbol):
+
+	The background color of the side window is "#CCCCFF".
+
+If the story will be running in a browser, we'll need to use CSS to set custom colors or styles. See the "Rock Number" section for how to refer to a particular window in CSS.
+
+
+Section: Rock Number
+
+Internally, Glulx windows are dynamic objects, created as they are opened. Our g-windows, on the other hand, are static objects. When Flexible Windows opens a window, it gives the window a number, called the "rock number." This rock number serves to identify the dynamic Glk/Glulx window object as the current instantiation of the static g-window object that shares the same rock number.
+
+Normally, Flexible Windows will set the rock numbers for all g-windows automatically, and the whole process occurs behind the scenes. There may be times, however, when we want to set a g-window's rock number to a particular value. For example, Quixe, the javascript Glulx interpreter, uses rock numbers to identify windows for styling with CSS. In that system, the CSS for a window with rock number 1010 might look like this:
+
+	.WindowRock_1010 { background-color: blue; }
+
+Rocks should be numbered 200 and above. This extension starts numbering them from 1000. It is customary, though not necessary, to skip 10 when adding a new window; that is, for three windows, we'd have 1000, 1010, and 1020. In fact, this is how Flexible Windows will assign them if we don't intervene. To ensure that a g-window gets a particular rock number, we can set it like so:
+
+	The rock number of the side window is 245.
+
+If we set numbers ending in 5 for our manual rock numbers, we will never conflict with the automated numbering.
+
+
+Chapter: Using Windows
+	
+Section: Overview
+
+This extension provides little in the way of support for graphics windows or text grid windows, both of which can display images and draw shapes in a full range of colours. Text grids can also locate the cursor (so, say, could be used to make a pac-man game). A few useful phrases for text-buffer windows are supplied.
+
+
+Section: Opening a Window
+
+To open a window (for instance, our example window named "side window"):
+
+	open side window
+
+The only point to note is that the "open" command will, if necessary, also open any sub-windows required to reach the window you've asked for. So if the side window is a spawn of the banner window, and the banner window is currently not open, the "open side window" command will open both.
+
+
+Section: Closing a Window
+
+To close the window:
+	
+	close side window
+
+The point above applies here, in reverse: shutting a window will also shut all sub-windows contained by it.
+
+
+Section: Refreshing a Window
+
+The refreshing activity is for redrawing windows. We can invoke the refreshing activity like this:
+
+	refresh side window
+
+To refresh all the windows:
+
+	refresh all windows
+	
+The refreshing activity will automatically first check if the window is present, focus the window, and clear the window, so we usually won't need to do those things manually.
+
+Rules for the refreshing activity should (ideally) be able to reconstruct entirely the contents of the window (otherwise, after an UNDO or a RESTORE, information will be lost):
+
+	Rule for refreshing the side window (this is the display inventory in side window rule):
+		try taking inventory;
+
+		
+Section: Checking if a Window is Present		
+		
+To check the existence of a window at any time, we can test for the g-present property:
+
+	if side window is g-present
+	if side window is g-unpresent
+	
+When we refresh a window, this will be done automatically.
+
+
+Section: Focusing a Window
+
+To manually move the focus to a particular window:
+
+	focus side window
+	
+This is usually not necessary, as focusing is done automatically when we refresh a window.
+
+
+Section: Clearing a Window
+
+To manually clear a window:
+
+	clear side window
+	
+This is usually not necessary, as clearing is done automatically when we refresh a window.
+	
+	
+Section: Checking Which Window is in Focus
+
+To find out which window is currently in focus, we can check the variable "current focus window":
+
+	Rule for printing the name of the old book while taking inventory and the current focus window is side window:
+		say "The Meteor, the Stone (etc.)" instead.
+		
+		
+Section: Turning Off the Status Line
+
+By default, Glulx games will incorporate a status line. To turn this off quickly, a use option is provided:
+
+	Use no status line.
+
+
+Example: * Inventory Window - A simple example showing how to place a side window displaying the player's inventory.
+
+	*: "Inventory Window"
+
+	Include Flexible Windows by Jon Ingold.
+
+	The side window is a text buffer g-window spawned by the main window.
+	The position of the side window is g-placeright.
+	The measurement of the side window is 30.
+
+	Rule for refreshing the side window:
+		try taking inventory.
+	
+	When play begins:
+		open the side window.
+	
+	Every turn:
+		refresh the side window.
+	
+	The Study is a room. In the study is an old oak desk. On the desk is a Parker pen, a letter, an envelope and twenty dollars.
+
+	Test me with "take pen/take letter/i/take all".
+
