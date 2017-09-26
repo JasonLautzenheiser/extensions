@@ -1,4 +1,4 @@
-Object Matching by Xavid begins here.
+Version 1/170530 of Object Matching by Xavid begins here.
 
 "Support for getting the matched object when matching a snippet against a pattern and for disabling clarification when a command or snippet is ambiguous."
 
@@ -9,21 +9,24 @@ Section 1 - Getting an object out of a matched snippet
 The matched object is an object that varies.
 The matched object variable translates into I6 as "matched_object".
 
-[ TODO: This sometimes causes a spurrious newline to get printed, for example if the text starts with something that matches something dynamically. (E.g., Understand "fire/smoke" as something flaming.) ]
 To decide if (S - a snippet) object-matches (T - a topic):
 	(- SnippetMatchesObject({S}, {T}) -)
 
 Include (-
 
-[ SnippetMatchesObject snippet topic_gpr rv prev_disable_clarification;
+[ SnippetMatchesObject snippet topic_gpr rv prev_disable_clarification prev_etype;
+	! Without this, SnippetMatchesObject sometimes causes a spurious newline to get printed, for example if the text starts with something that matches something dynamically. (E.g., Understand "fire/smoke" as something flaming.)
+	RunParagraphOn();
 	matched_object=nothing;
 	wn=1;
 	if (topic_gpr == 0) rfalse;
 	if (metaclass(topic_gpr) == Routine) {
 		prev_disable_clarification = disable_clarification;
+		prev_etype = etype;
 		disable_clarification = true;
 		rv = (topic_gpr)(snippet/100, snippet%100);
 		disable_clarification = prev_disable_clarification;
+		etype = prev_etype;
 		matched_object = rv;
 		if (rv ~= GPR_FAIL) rtrue;
 		rfalse;
@@ -230,6 +233,10 @@ Note that this will last until you do "now disable clarification is false".
 Chapter 3 - Bugs and Comments
 
 This extension is hosted in Github at https://github.com/i7/extensions/tree/master/Xavid. Feel free to email me at extensions@xavid.us with questions, comments, bug reports, suggestions, or improvements.
+
+Section 1 - Known Issues
+
+Something in the current multiple object list won't match as a "[thing]" or similar.
 
 Example: *** Psychic Examiner - Error messages with locations.
 

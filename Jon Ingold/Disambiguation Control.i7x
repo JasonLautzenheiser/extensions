@@ -1,8 +1,8 @@
-Version 8 of Disambiguation Control by Jon Ingold begins here.
+Version 10/170416 of Disambiguation Control by Jon Ingold begins here.
 
 "Allows finer control over the disambiguation process used by Inform to decide what the player was referring to. Less guesswork, more questions asking for more input. Also removes the multiple-object-rejection in favour of asking for more information."
 
-"updated for 6L02 by Matt Weiner and Daniel Stelzer"
+"updated for 6M62 by Matt Weiner and Daniel Stelzer"
 
 
 [ KNOWN ISSUES LIST:
@@ -22,6 +22,10 @@ Version 8 of Disambiguation Control by Jon Ingold begins here.
 ]
 
 [Version 8: A few tiny patches have been made by Matt Weiner to attempt to get Disambiguation Control running under 6L02]
+
+[Version 9: Changed "yes" and "no" to "decide yes" and "decide no" to enable compilation with 6M62]
+
+[Version 10: Realized that the problem with the "yes" and "no" phrases was a class with rulebook outcomes for the bypass disambiguation rulebook, which doesn't work anyway, so commented that out to avoid clashes with other code]
 
 Use disambiguation list length of at least 6 translates as (- Constant TRUNCATE_LIST = {N}; -).
 
@@ -61,8 +65,8 @@ To decide if considering some (D - a description of objects):
 [ if D intersect the match list is non-empty ... ]
 	let L be the match list;
 	let Y be a list of objects; let Y be the list of D;
-	if L intersect Y is non-empty, yes;
-	no. 
+	if L intersect Y is non-empty, decide yes;
+	decide no. 
 
 To decide if also considering (k - an object):
 	(-  (IncludedInMatchList({k}) && ~~IncludedInMatchList(0)) 	-).
@@ -79,51 +83,51 @@ To decide if comparing it/-- against/with/alongside (k - an object):
 
 To decide if comparing (x0 - an object) against (x1 - a object):
 [	say "comparing [x0] against [x1] when the match list is [the match list] and the noun is [noun]...."; ]
-	if x0 is not under consideration, no;
+	if x0 is not under consideration, decide no;
 	let L be the match list;
 	remove the x0 from L, if present;
 	remove x1 from L, if present;
-	if the number of entries in L is 0, yes;
-	no.
+	if the number of entries in L is 0, decide yes;
+	decide no.
 
 To decide if comparing (x1 - a object) +/plus (x2 - a object):
 	let L be the match list;
 	remove x1 from L, if present;
 	remove x2 from L, if present;
-	if the number of entries in L is 0, yes;
-	no.
+	if the number of entries in L is 0, decide yes;
+	decide no.
 
 [ three things ]
 
 To decide if comparing (x0 - an object) against (x1 - an object) + (x2 - an object):
 [say "comparing [x0] with [x1] and [x2]";]
-	if x0 is not under consideration, no;
+	if x0 is not under consideration, decide no;
 	let L be the match list;
 	remove the x0 from L, if present;
 	remove x1 from L, if present;
 	remove x2 from L, if present;
-	if the number of entries in L is 0, yes;
-	no.
+	if the number of entries in L is 0, decide yes;
+	decide no.
 
 To decide if comparing (x1 - an object) +(x2 - an object) + (x3 - an object):
 	let L be the match list; 
 	remove x1 from L, if present;
 	remove x2 from L, if present;
 	remove x3 from L, if present;
-	if the number of entries in L is 0, yes;
-	no.
+	if the number of entries in L is 0, decide yes;
+	decide no.
 
 [ four things ]
 
 To decide if comparing (x0 - an object) against (x1 - an object) +(x2 - an object) + (x3 - an object):
-	if x0 is not under consideration, no;
+	if x0 is not under consideration, decide no;
 	let L be the match list; 
 	remove the x0 from L, if present;
 	remove x1 from L, if present;
 	remove x2 from L, if present;
 	remove x3 from L, if present;
-	if the number of entries in L is 0, yes;
-	no.
+	if the number of entries in L is 0, decide yes;
+	decide no.
 
 To decide if comparing (x0 - an object) + (x1 - an object) + (x2 - an object) + (x3 - an object):
 	let L be the match list; 
@@ -131,36 +135,36 @@ To decide if comparing (x0 - an object) + (x1 - an object) + (x2 - an object) + 
 	remove x1 from L, if present;
 	remove x2 from L, if present;
 	remove x3 from L, if present;
-	if the number of entries in L is 0, yes;
-	no.
+	if the number of entries in L is 0, decide yes;
+	decide no.
 
 [ unlimited things via a description ]
 
 To decide if comparing (C - a description of objects):
 	let L be a list of objects;
 	let L be the list of C;
-	if the match list is a subset of L, yes;
-	no.
+	if the match list is a subset of L, decide yes;
+	decide no.
 
 To decide if comparing (x0 - an object) against (C - a description of objects):
-	if x0 is not under consideration, no;
+	if x0 is not under consideration, decide no;
 	let L be a list of objects;
 	remove the x0 from L, if present;
 	let L be the list of C;
-	if the match list is a subset of L, yes;
-	no.
+	if the match list is a subset of L, decide yes;
+	decide no.
 
 Section - some phrases for testing whether we've checking noun or second
 
 To decide if (x - an object) is not under consideration:
-	if testing noun and x is not the noun, yes;
-	if not testing noun and x is not the second noun, yes;
-	no.	
+	if testing noun and x is not the noun, decide yes;
+	if not testing noun and x is not the second noun, decide yes;
+	decide no.	
 
 To decide if testing the/a/-- noun:	(- (TestingNoun()) -).
 To decide if testing the/a/-- second noun: 	
-	if testing noun, no;
-	yes.
+	if testing noun, decide no;
+	decide yes.
 
 Include (-
 [ TestingNoun;
@@ -1757,7 +1761,7 @@ Constant PREFER_HELD;
   }
 
 
-if (guessing == true || (guessing == false && ChooseObjectsBypassDisambiguate()))
+if (guessing == true) ! If bypass disambiguation were working, it would be checked here (MW)
   for (i=0: i<number_matched:i++)
   { 
 	if (match_list-->i~=-1)
@@ -2690,8 +2694,9 @@ Include (-
 	];
 -);
 
+[version 10 -- removed this, since it has never worked, and it is interfering with calls to "yes" and "no" elsewhere in the code]
 
-Chapter  - bypass disambiguate
+[Chapter  - bypass disambiguate
 
 [ 
 Bypass disambiguation rules allow us to use the old parser mechanism of favouring held objects in cases where it's faster and less annoying.
@@ -2722,7 +2727,7 @@ Include(-
 		rtrue;
 ];
 
--).
+-).]
 
 Chapter - we resolve scores from the three types of test
 
@@ -3144,11 +3149,11 @@ Outcomes:
 	never
 
 
-Section: To Bypass Disambiguation
+[Section: To Bypass Disambiguation
 
 I7's inbuilt system will prefer held objects except when Taking or Removing, when it prefers objects in the location. This should be now effectively handled by the "Should the game suggest" rules, but in case it isn't, and you want I7 to make it's own choices, you should use a "bypass disambiguate rule" to make it guess as it normally would.
 
-(At present these rules are not properly implemented because I don't think they're useful. Currently, they take in no data about the action but should return "yes" or "no". They will eventually respond to action patterns.)
+(At present these rules are not properly implemented because I don't think they're useful. Currently, they take in no data about the action but should return "yes" or "no". They will eventually respond to action patterns.)]
 
 Chapter: Thanks, Notes and Limitations
 
@@ -3159,6 +3164,8 @@ Disambiguation is built in, on and out of Graham Nelson's I6 parser, an intricat
 Thanks for Eric Eve and Ron Newcomb for feedback and suggestions.
 
 Matt Weiner and Daniel Stelzer updated this extension for version 6L02.
+
+Matt Weiner updated this extension for version 6M62 (I believe this should be backward compatible to 6L02).
 
 Section: Notes and Limitations
 
@@ -3171,11 +3178,9 @@ The multiple action support only works for "all", not for specific numbers: so "
 
 Section: Feedback
 
-If you have comments, suggestions, questions or bugs please contact me at jon.ingold@gmail.com.
+If you have comments, suggestions, questions or bugs please contact Matt Weiner at matt@mattweiner.net.
 
 Section: Changelog
-
-
 
 Version 6 - Updated to compile with 6E59.
 
@@ -3187,6 +3192,15 @@ Version 8 - Attempt by Matt Weiner and Daniel Stelzer to adapt extension for 6L0
 
 - Changed deprecated phrase "End the game in victory" in example "Scrumping".
 - Replaced table of messages with standard responses.
+
+Version 9/171416 - Attempt by Matt Weiner to adapt extension for 6M62.
+
+- Changed every instance of "yes" and "no" in a To decide if phrase to "decide yes" and "decide no."
+- Changed the feedback address from Jon's to Matt's.
+
+Version 10/171416
+
+- Eliminated the bypass disambiguation rulebook, which has never worked, and which inteferes with legal use of "yes" and "no" in other phrases.
 
 Example: * Keys and Locks - A quick example showing how to make keys and locks that the parser prefers to choose
 

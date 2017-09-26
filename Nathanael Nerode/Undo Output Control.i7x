@@ -1,6 +1,9 @@
-Version 5/170902 of Undo Output Control by Erik Temple begins here.
+Version 5/170902 of Undo Output Control by Nathanael Nerode begins here.
 
-"In addition to allowing control over UNDO default messages, provides hooks into UNDO processing, including multiple ways to suspend UNDO temporarily, to place limitations on UNDO (such as allowing only one UNDO in a row), to undo the current turn from code, and to control when the game state is saved. Using the latter, we can effectively control which turn UNDO returns us to.  Also allows changing the words which invoke UNDO and OOPS.  Also allows the story to edit a blank command before analyzing it.  Updated to Inform 6M62."
+"Provides hooks into UNDO processing, including multiple ways to suspend UNDO temporarily, to place limitations on UNDO (such as allowing only one UNDO in a row), to undo the current turn from code, and to control when the game state is saved. Using the latter, we can effectively control which turn UNDO returns us to.  Also allows changing the words which invoke UNDO and OOPS, and allows the story to edit a blank command before analyzing it.  Updated to Inform 6M62."
+
+"based on the extension by Erik Temple; 
+integrates Empty Command Handling by Daniel Stelzer based on code by Matt Weiner"
 
 Volume - High Level Stuff
 

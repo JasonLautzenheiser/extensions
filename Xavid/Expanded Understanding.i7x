@@ -1,4 +1,4 @@
-Expanded Understanding by Xavid begins here.
+Version 1/170913 of Expanded Understanding by Xavid begins here.
 
 "Various tweaks to understand additional variations of commands and have cleverer, more specific error messages in common failure cases."
 
@@ -20,13 +20,13 @@ Section 2 - Improved Errors for Taking
 A can't see any such thing rule when the clever action-to-be is the taking off action (this is the not wearing something to take off rule):
 	say "You're not wearing any [mistaken noun snippet]."
 
-[ Maybe it's "take something from something" ]
-A can't see any such thing rule when the clever action-to-be is the removing it from action and the mistaken noun position is 1 (this is the can't see something to take from rule):
+[ Maybe it's "take something from something" ; mistaken noun position will be 1 when it's nothing and 0 when it's something, but in the wrong location ]
+A can't see any such thing rule when the clever action-to-be is the removing it from action and the mistaken noun position is not 2 (this is the can't see something to take from rule):
 	if the clever second noun snippet object-matches "[thing]":
 		let loc be the substituted form of "in [the matched object]";
 		if the matched object is a supporter:
 			now loc is the substituted form of "on [the matched object]";
-		say the clever don't "see" any mistaken noun snippet message for loc;
+		say the clever don't "see" any clever noun snippet message for loc;
 	else:				
 		say the clever don't "see" any mistaken noun snippet message.
 
@@ -80,6 +80,10 @@ Section 4 - Improved Errors for Examining
 
 Definition: a thing is remembered if the remembered location of it is not nothing.
 
+Section 5 - Examining Rooms
+
+Understand "room/here" as a room.
+
 Chapter 4 - Burn
 
 Understand "set fire to [something]" as burning.
@@ -89,7 +93,10 @@ Chapter 5 - Go
 Section 1 - Going To Scenery (for use with Approaches by Emily Short)
 
 Landmark-approaching is an action applying to one visible thing.
-Definition: a thing is a landmark if (it is fixed in place or it is scenery) and it is in a visited room.
+A thing can be approachable.
+A scenery thing is usually approachable.
+A fixed in place thing is usually approachable.
+Definition: a thing is a landmark if it is approachable and it is in a visited room.
 Understand "go to [any landmark thing]" or "go back to [any landmark thing]" or "return to [any landmark thing]" or "revisit [any landmark thing]" as landmark-approaching.  
 
 Instead of an actor landmark-approaching (this is the convert landmark-approaching to approaching rule):
@@ -155,6 +162,13 @@ Every turn (this is the followers pursue even through multiple rooms rule):
 					now the pursuer is not shadowing the goal of the pursuer;
 					break;
 
+Chapter 7 - Use
+
+[ Small Kindnesses defines a one-noun form of use, and a two-form but only in some cases. ]
+Understand "use [something] on [something]" as using it on. Using it on is an action applying to two things.
+
+Carry out using it on (this is the Expanded Understanding carry out using it on rule): say "You'll have to try a more specific verb than use."
+
 Part 2 - Other
 
 Chapter 1 - All
@@ -203,12 +217,28 @@ Understand "drop [something preferably held] in/into/down [something]" as insert
 Understand "drop [something preferably held] on/onto [something]" as putting it on.
 Understand the commands "throw" and "discard" as "drop".]
 
+Section 3 - Give All
+
+Understand "give [things preferably held] to [someone]" as giving it to.
+Understand "give [someone] [things preferably held]" as giving it to (with nouns reversed).
+
+[ Bad grammar, but might get tried anyways. ]
+[ This is the intent, but doing literally this messes up the error messages for other things. Doing it as a parser error handler means it won't break otherwise successful commands. ]
+[Understand "give [a held thing] [someone]" as giving it to.]
+Rule for printing a parser error when the latest parser error is the can only do that to something animate error and the action-to-be is the giving it to action (this is the clever bad grammar giving rule):
+	if the length of the player's command >= 3 and the word at (the length of the player's command - 1) does not match "to" and the word at (the length of the player's command) object-matches "[someone]":
+		let person be the matched object;
+		if the snippet at 2 of length (the length of the player's command - 2) object-matches "[a held thing]":
+			try giving the matched object to the person;
+			rule succeeds;
+	continue the activity.
+
 Chapter 2 - Conversation
 
 Section 1 - Rewriting the Command
 
 After reading a command (this is the Expanded Understanding conversational substitutions rule):
-	if the word at 1 matches "[someone]":
+	if the word at 1 matches "[someone]" and the length of the player's command >= 2:
 		[missing commas: understand "Kayla go south" as "Kayla, go south"]
 		change the text of the player's command to the substituted form of "[word at 1], [the command from 2 onwards]";
 	else if the player's command includes "tell/ask/order/command [someone] to" and the start of the matched text is 1:
@@ -331,7 +361,7 @@ To say the clever don't (seehave - text) any (MS - a snippet) message for (loc -
 		say "I'm not sure what you want to [clever verb].";		
 	else if MS object-matches "[any remembered thing]":
 		if the location of the matched object is the location of the player:
-			say "[regarding the matched object][The matched object] isn't [loc]. [They]['re] [at the remembered location of the matched object].";
+			say "[regarding the matched object][The matched object] [aren't] [loc]. [They]['re] [at the remembered location of the matched object].";
 		else if the matched object is fixed in place:
 			say "[regarding the matched object]You don't [seehave] [the matched object] [loc]. [They] [adapt the verb are in the past tense] [at the remembered location of the matched object].";
 		else:
@@ -355,6 +385,11 @@ The clever verb is text that varies.
 
 To determine the mistaken noun:
 	let best score be -1;
+	[ set some defaults if no lines match, due to implied prepositions say ]
+	[ 0 means "unknown" ]
+	now the mistaken noun position is 0;
+	now the mistaken noun snippet is the snippet at 2 of length the length of the player's command - 1;
+	now the clever action-to-be is the waiting action;
 	get syntax;
 	repeat with I running from 1 to the syntax len:		
 		let WL be a list of text;
@@ -440,33 +475,53 @@ To determine the mistaken noun:
 				now the clever noun snippet is N1;
 				now the clever second noun snippet is N2;
 				now the clever action-to-be is the action-to-be;
-				let mnstart be mistake start;
-				if n1start > mnstart:
-					let mnstart be n1start;
-				let mnlen be a number;
-				if n2start > 0 and the mistake start >= n2start:
-					now mnlen is n2len - (mnstart - n2start);
-					now the mistaken noun position is 2;				
+				[ saved mistake start might be from a later grammar line, so can't use it ]
+				[ let's see if the first noun doesn't object-match something ]
+				if the clever noun snippet object-matches "[thing]":
+					if the clever second noun snippet object-matches "[thing]":
+						[ both nouns match, so I'm out of ideas ]
+						now the mistaken noun position is 0;
+					else:
+						now the mistaken noun position is 2;
+						now the mistaken noun snippet is the clever second noun snippet;
 				else:
-					now mnlen is n1len - (mnstart - n1start);
 					now the mistaken noun position is 1;
-				now the mistaken noun snippet is the snippet at mnstart of length mnlen;
-				repeat with possible len running from 1 to mnlen:
+					now the mistaken noun snippet is the clever noun snippet;
+				[ handle lists of nouns somewhat properly ]
+				let mnstart be the start of the mistaken noun snippet;
+				let wordskip be 0;
+				let nounstoskip be the number of entries in the multiple object list;
+				repeat with possible len running from 1 to the length of the mistaken noun snippet:
 					let snip be the snippet at mnstart plus possible len of length 1;
-					if snip is valid and snip matches the regular expression "(?i)^and|,$":
-						[ end snippet early if we hit an and or , ]
-						now the mistaken noun snippet is the snippet at mnstart of length possible len;
-						break;
+					if (not (snip is valid)) or snip matches the regular expression "(?i)^and|,$":
+						[ maybe end snippet early if we hit an and or , ]
+						if nounstoskip > 0:
+							[ keep going ]
+							now wordskip is possible len plus 1;
+							now nounstoskip is nounstoskip minus 1;
+						else:
+							now the mistaken noun snippet is the snippet at (mnstart plus wordskip) of length (possible len minus wordskip);
+							break;
 				if n1start > 2:
 					now the clever verb is the snippet at 1 of length n1start;
 				else:
 					now the clever verb is the verb word;
-				[if N1 is the mistaken noun snippet:
-					say "N1!";
-				if N2 is the mistaken noun snippet:
-					say "N2!";]
+				if N1 is the mistaken noun snippet:
+					debug "Better match: [the mistaken noun snippet] N1!";
+				else if N2 is the mistaken noun snippet:
+					debug "Better match: [the mistaken noun snippet] N2!";
+				else:
+					debug "Better match: [n1start] ? [n2start] ? [mistaken noun snippet] ?";
 				now best score is score;
-	[say "XAVID best match: [clever action-to-be] [mistaken noun snippet].";]
+				if action reversed is true:
+					let tmp be the clever noun snippet;
+					now the clever noun snippet is the clever second noun snippet;
+					now the clever second noun snippet is tmp;
+					if mistaken noun position is 2:
+						now mistaken noun position is 1;
+					else if mistaken noun position is 1:
+						now mistaken noun position is 2;
+	debug "XAVID best match: [clever action-to-be] [mistaken noun snippet].";
 
 Syntax len is a number that varies.
 The syntax len variable translates into I6 as "syntax_len".
@@ -476,6 +531,12 @@ The token type variable translates into I6 as "found_ttype".
 
 Token data is a number that varies.
 The token data variable translates into I6 as "found_tdata".
+
+Action reversed is a truth state that varies.
+The action reversed variable translates into I6 as "action_reversed".
+
+Match from is a number that varies.
+The match from variable translates into I6 as "found_tdata".
 
 Include (-
 
@@ -512,7 +573,16 @@ Include (-
 
 Section 4 - Debugging - Not for release
 
-Expanded debug mode is a truth state that varies. Expanded debug mode is false.
+Expanded debug mode is a truth state that varies. Expanded debug mode is usually false.
+
+Toggling expanded debug mode is an action out of world.
+Understand "eudebug" as toggling expanded debug mode.
+Carry out toggling expanded debug mode:
+	if expanded debug mode is true:
+		now expanded debug mode is false;
+	else:
+		now expanded debug mode is true;
+	say "(set expanded understanding debug mode to [expanded debug mode].)"
 
 To debug (T - text):
 	if expanded debug mode is true:
@@ -590,11 +660,17 @@ To say at (T - a person):
 
 Section 5 - Mistake Location
 	
-To decide which number is the mistake start: 
+To decide which number is the mistake start:
 	(- oops_from -).
 
 To decide which snippet is the mistake snippet:
 	decide on the snippet at mistake start of length (the command length - mistake start + 1).
+
+To decide which number is the saved mistake start:
+	(- saved_oops -).
+
+To decide which snippet is the saved mistake snippet:
+	decide on the snippet at saved mistake start of length (the command length - saved mistake start + 1).
 
 Section 6 - Convert To with Two Nouns
 
@@ -657,7 +733,7 @@ If the player tries to examine something that's not here but they've seen before
 
 To make natural messages about things being in rooms, we give rooms a property called the "at preposition". This is "at" by default for messages like "You last saw it at the river." but can be set to, say, "in" for indoor rooms. In addition, you can have rooms be improper-named for these messages to use lower case and the article "the".
 
-In addition, the error messages are reworked to use the specific words typed by the player.
+In addition, the error messages are reworked to use the specific words typed by the player in some cases.
 
 Chapter 2 - Taking and Dropping
 
@@ -701,7 +777,7 @@ We allow NPCs to implicitly take things, which is normally allowed by the Standa
 
 In addition, we fix an extra line break that normally shows up after the failure-to-take message when you try and fail to implicitly take something.
 
-Part 6 Bugs and Comments
+Part 6 - Bugs and Comments
 
 This extension is hosted in Github at https://github.com/i7/extensions/tree/master/Xavid. Feel free to email me at extensions@xavid.us with questions, comments, bug reports, suggestions, or improvements.
 
@@ -753,8 +829,22 @@ Example: ** Unit Tests
 	A woman called the girl is here.
 	Persuasion rule for asking someone to try doing something:
 		persuasion succeeds.
+	The block giving rule does nothing.
 	
+	Filling it from is an action applying to two things.
+	Understand "fill [something] from [something]" as filling it from.
+
+	Understand "put out [something] with [something preferably held]" as putting it on (with nouns reversed).
+
+	Understand "put [something preferably held] in front of [something]" as putting it on.
+
 	Unit test:
+		start test "x here";
+		assert that "x room" produces "Shed[line break]You can see a table (on which is a saw) and a hammer here.";
+		[]
+		start test "implied preposition grammar";
+		assert that "fill stump girl" produces "You don't see any stump girl here.";
+		[]
 		start test "all";
 		assert that "drop all" produces "You're not carrying anything to drop.";
 		do "take hammer";
@@ -777,6 +867,8 @@ Example: ** Unit Tests
 		start test "alternate ways of ordering";
 		assert that "girl jump" produces "The girl jumps on the spot.";
 		assert that "order girl to jump" produces "The girl jumps on the spot.";
+		assert that "girl" produces "That's not a verb I recognise.";
+		assert that "girl," produces "There is no reply.";
 		[]
 		start test "failing to implicitly take";
 		assert that "put stump on yard" produces "(first trying to take the stump)[line break]That's fixed in place.";
@@ -806,6 +898,25 @@ Example: ** Unit Tests
 		[]
 		start test "put";
 		assert that "put stump on table" produces "You don't have the stump in your possession. It was at In Yard.";
+		[]
+		start test "give";
+		do "take saw";
+		do "s";
+		assert that "give all to girl" produces "saw: You give the saw to the girl.[line break]hammer: You give the hammer to the girl.";
+		assert that "girl, give all to me" produces "hammer: The girl gives the hammer to you.[paragraph break]saw: The girl gives the saw to you.";
+		assert that "give girl all" produces "saw: You give the saw to the girl.[line break]hammer: You give the hammer to the girl.";
+		assert that "girl, give me all" produces "hammer: The girl gives the hammer to you.[paragraph break]saw: The girl gives the saw to you.";
+		assert that "give hammer girl" produces "You give the hammer to the girl.";
+		do "n";
+		assert that "give saw to girl" produces "You don't see the girl here. You last saw her at In Yard.";
+		assert that "give saw to table" produces "You can only do that to something animate.";
+		assert that "use saw on table" produces "You'll have to try a more specific verb than use.";
+		[]
+		start test "complex verb lines";
+		do "drop saw";
+		assert that "put out stump with saw" produces "You don't see the stump here. It was at In Yard.";
+		do "s";
+		assert that "put out stump with saw" produces "You don't have the saw in your possession. You last saw it in the shed.";
 	
 	Test me with "unit".
 
